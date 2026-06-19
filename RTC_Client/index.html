@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC Group Call - React</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 10px; }
+    .root { max-width: 1200px; margin: 0 auto; }
+    .room-info { text-align: center; margin-bottom: 20px; color: #aaa; }
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .video-container {
+      position: relative;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .video-container video {
+      width: 100%;
+      min-height: 200px;
+      object-fit: cover;
+    }
+    .video-label {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .log-panel {
+      padding: 10px;
+      background: #0f0f23;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- React 18 UMD builds -->
+<script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<script>
+// Shortcuts
+var e = React.createElement;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+var useCallback = React.useCallback;
+
+// ============================================================
+// ICE Server Configuration
+// ============================================================
+var ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    }
+  ]
+};
+
+// ============================================================
+// VideoTile Component - Renders a single video element
+// ============================================================
+function VideoTile(props) {
+  var videoRef = useRef(null);
+
+  useEffect(function() {
+    if (videoRef.current && props.stream) {
+      videoRef.current.srcObject = props.stream;
+    }
+  }, [props.stream]);
+
+  return e("div", { className: "video-container" },
+    e("video", {
+      ref: videoRef,
+      autoPlay: true,
+      playsInline: true,
+      muted: props.muted || false
+    }),
+    e("div", { className: "video-label" }, props.label)
+  );
+}
+
+// ============================================================
+// LogPanel Component - Shows debug messages
+// ============================================================
+function LogPanel(props) {
+  var logRef = useRef(null);
+
+  useEffect(function() {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [props.logs]);
+
+  return e("div", { className: "log-panel", ref: logRef },
+    props.logs.map(function(msg, i) {
+      return e("div", { key: i }, msg);
+    })
+  );
+}
+
+// ============================================================
+// RoomInfo Component
+// ============================================================
+function RoomInfo(props) {
+  var status = props.connected
+    ? (props.peerCount + 1) + " participant(s)"
+    : "Connecting...";
+  return e("p", { className: "room-info" },
+    "Room: " + props.roomId + " | " + status
+  );
+}
+
+// ============================================================
+// App Component - Main application logic
+// ============================================================
+function App() {
+  var logsState = useState([]);
+  var logs = logsState[0];
+  var setLogs = logsState[1];
+
+  var localStreamState = useState(null);
+  var localStream = localStreamState[0];
+  var setLocalStream = localStreamState[1];
+
+  var remoteStreamsState = useState({});
+  var remoteStreams = remoteStreamsState[0];
+  var setRemoteStreams = remoteStreamsState[1];
+
+  var connectedState = useState(false);
+  var connected = connectedState[0];
+  var setConnected = connectedState[1];
+
+  var socketRef = useRef(null);
+  var peersRef = useRef({});
+  var localStreamRef = useRef(null);
+  var roomId = "room1";
+
+  // Helper to add log messages
+  function addLog(msg) {
+    var time = new Date().toLocaleTimeString();
+    setLogs(function(prev) { return prev.concat([time + " " + msg]); });
+    console.log(msg);
+  }
+
+  // Create a peer connection to a specific remote user
+  function createPeerConnection(remoteSocketId) {
+    var pc = new RTCPeerConnection(ICE_CONFIG);
+
+    // Add our local tracks
+    localStreamRef.current.getTracks().forEach(function(track) {
+      pc.addTrack(track, localStreamRef.current);
+    });
+
+    // When we receive remote tracks
+    pc.ontrack = function(event) {
+      addLog("Received track from " + remoteSocketId.substring(0, 6));
+      setRemoteStreams(function(prev) {
+        var updated = Object.assign({}, prev);
+        updated[remoteSocketId] = event.streams[0];
+        return updated;
+      });
+    };
+
+    // Send ICE candidates
+    pc.onicecandidate = function(event) {
+      if (event.candidate) {
+        socketRef.current.emit("ice-candidate", {
+          to: remoteSocketId,
+          candidate: event.candidate
+        });
+      }
+    };
+
+    pc.oniceconnectionstatechange = function() {
+      addLog("ICE [" + remoteSocketId.substring(0, 6) + "]: " + pc.iceConnectionState);
+      if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
+        removePeer(remoteSocketId);
+      }
+    };
+
+    pc.pendingCandidates = [];
+    peersRef.current[remoteSocketId] = pc;
+    return pc;
+  }
+
+  // Clean up a peer
+  function removePeer(socketId) {
+    if (peersRef.current[socketId]) {
+      peersRef.current[socketId].close();
+      delete peersRef.current[socketId];
+    }
+    setRemoteStreams(function(prev) {
+      var updated = Object.assign({}, prev);
+      delete updated[socketId];
+      return updated;
+    });
+  }
+
+  // Initialize everything
+  useEffect(function() {
+    async function init() {
+      try {
+        // Step 1: Get local camera and microphone
+        var stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+        setLocalStream(stream);
+        localStreamRef.current = stream;
+        addLog("Got local media stream");
+
+        // Step 2: Connect to the signaling server
+        var socket = io(window.location.origin);
+        socketRef.current = socket;
+
+        socket.on("connect", function() {
+          addLog("Socket connected: " + socket.id);
+          setConnected(true);
+          socket.emit("join-room", roomId);
+          addLog("Joined room: " + roomId);
+        });
+
+        // Step 3: Get existing users, send offers to each
+        socket.on("existing-users", async function(userIds) {
+          addLog("Existing users in room: " + userIds.length);
+          for (var i = 0; i < userIds.length; i++) {
+            var userId = userIds[i];
+            addLog("Creating offer for " + userId.substring(0, 6));
+            var pc = createPeerConnection(userId);
+            var offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit("offer", { to: userId, offer: offer });
+          }
+        });
+
+        // Step 4: New user joined (they will send us an offer)
+        socket.on("user-joined", function(userId) {
+          addLog("New user joined: " + userId.substring(0, 6));
+        });
+
+        // Step 5: Receive offer, send answer
+        socket.on("offer", async function(data) {
+          var from = data.from;
+          var offer = data.offer;
+          addLog("Received offer from " + from.substring(0, 6));
+          var pc = createPeerConnection(from);
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+          // Apply queued ICE candidates
+          for (var i = 0; i < pc.pendingCandidates.length; i++) {
+            await pc.addIceCandidate(new RTCIceCandidate(pc.pendingCandidates[i]));
+          }
+          pc.pendingCandidates = [];
+
+          var answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit("answer", { to: from, answer: answer });
+          addLog("Answer sent to " + from.substring(0, 6));
+        });
+
+        // Step 6: Receive answer
+        socket.on("answer", async function(data) {
+          var from = data.from;
+          var answer = data.answer;
+          addLog("Received answer from " + from.substring(0, 6));
+          var pc = peersRef.current[from];
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            for (var i = 0; i < pc.pendingCandidates.length; i++) {
+              await pc.addIceCandidate(new RTCIceCandidate(pc.pendingCandidates[i]));
+            }
+            pc.pendingCandidates = [];
+          }
+        });
+
+        // Step 7: Exchange ICE candidates
+        socket.on("ice-candidate", async function(data) {
+          var from = data.from;
+          var candidate = data.candidate;
+          var pc = peersRef.current[from];
+          if (pc) {
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+              pc.pendingCandidates.push(candidate);
+            }
+          }
+        });
+
+        // Step 8: User left
+        socket.on("user-left", function(userId) {
+          addLog("User left: " + userId.substring(0, 6));
+          removePeer(userId);
+        });
+
+      } catch (err) {
+        addLog("Error: " + err.message);
+      }
+    }
+
+    init();
+
+    return function() {
+      if (socketRef.current) socketRef.current.disconnect();
+      Object.values(peersRef.current).forEach(function(pc) { pc.close(); });
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(function(t) { t.stop(); });
+      }
+    };
+  }, []);
+
+  var peerCount = Object.keys(remoteStreams).length;
+
+  // Build video tiles array
+  var videoTiles = [];
+
+  if (localStream) {
+    videoTiles.push(
+      e(VideoTile, { key: "local", stream: localStream, label: "You", muted: true })
+    );
+  }
+
+  Object.keys(remoteStreams).forEach(function(id) {
+    videoTiles.push(
+      e(VideoTile, { key: id, stream: remoteStreams[id], label: "User " + id.substring(0, 6) })
+    );
+  });
+
+  return e("div", { className: "root" },
+    e("h1", null, "WebRTC Group Call"),
+    e(RoomInfo, { roomId: roomId, peerCount: peerCount, connected: connected }),
+    e("div", { className: "video-grid" }, videoTiles),
+    e(LogPanel, { logs: logs })
+  );
+}
+
+// ============================================================
+// Render
+// ============================================================
+var root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(e(App));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,5 @@
+node_modules
+RTC_server/node_modules
+RTC_server/key.pem
+RTC_server/cert.pem
+.git
