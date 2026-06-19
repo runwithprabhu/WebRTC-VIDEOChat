@@ -43,11 +43,16 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-// Serve the client files
+// Serve the client files with no-cache headers
 // In Docker: files are at /app/public, locally: ../RTC_Client
 const clientPath = process.env.NODE_ENV === "production"
   ? path.join(__dirname, "public")
   : path.join(__dirname, "../RTC_Client");
+app.use(function(req, res, next) {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("Pragma", "no-cache");
+  next();
+});
 app.use(express.static(clientPath));
 
 // Track users in each room

@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-primary: #0a0a1a;
+  --bg-secondary: #12122a;
+  --bg-card: #1a1a3e;
+  --accent: #6c5ce7;
+  --accent-hover: #7f70f0;
+  --danger: #ff4757;
+  --success: #2ed573;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0c0;
+  --border: rgba(108, 92, 231, 0.2);
+  --glass: rgba(26, 26, 62, 0.85);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+}
+
+/* Animated background */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(108,92,231,0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(46,213,115,0.08) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 100%, rgba(255,71,87,0.08) 0%, transparent 40%);
+  z-index: 0;
+}
+
+/* Video Grid - side by side */
+.video-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  padding: 6px;
+  overflow: hidden;
+  z-index: 1;
+}

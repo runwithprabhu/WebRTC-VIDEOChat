@@ -1,0 +1,65 @@
+.end-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 24px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.end-screen-icon {
+  width: 88px;
+  height: 88px;
+  background: linear-gradient(135deg, var(--accent), #a29bfe);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 32px rgba(108, 92, 231, 0.3);
+}
+
+.end-screen h1 {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #fff, #a0a0c0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.end-screen p {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: 40px;
+}
+
+.reconnect-btn {
+  background: linear-gradient(135deg, var(--accent), #a29bfe);
+  color: #fff;
+  border: none;
+  padding: 15px 40px;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+}
+
+.reconnect-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(108, 92, 231, 0.5);
+}
+
+.reconnect-btn:active {
+  transform: scale(0.95);
+}

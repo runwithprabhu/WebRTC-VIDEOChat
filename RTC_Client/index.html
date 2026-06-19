@@ -37,6 +37,7 @@
                   radial-gradient(ellipse at 80% 20%, rgba(46,213,115,0.08) 0%, transparent 40%),
                   radial-gradient(ellipse at 50% 100%, rgba(255,71,87,0.08) 0%, transparent 40%);
       z-index: 0;
+      pointer-events: none;
     }
 
     .app-container {
@@ -92,15 +93,16 @@
     /* Video Grid */
     .video-grid {
       flex: 1;
-      display: grid;
+      display: flex;
+      flex-direction: row;
       gap: 6px;
       padding: 6px;
       overflow: hidden;
     }
-    .video-grid.count-1 { grid-template-columns: 1fr; }
-    .video-grid.count-2 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-    .video-grid.count-3,
-    .video-grid.count-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .video-grid .video-container {
+      flex: 1;
+      min-width: 0;
+    }
 
     .video-container {
       position: relative;
@@ -556,11 +558,7 @@ function App() {
   }
 
   function connectAgain() {
-    setCallEnded(false);
-    setLogs([]);
-    setAudioEnabled(true);
-    setVideoEnabled(true);
-    initCall();
+    window.location.replace(window.location.pathname);
   }
 
   async function initCall() {
@@ -592,7 +590,7 @@ function App() {
   Object.keys(remoteStreams).forEach(function(id) {
     videoTiles.push(e(VideoTile, { key: id, stream: remoteStreams[id], label: "User " + id.substring(0, 6), showStatus: false }));
   });
-  var gridClass = "video-grid count-" + Math.min(videoTiles.length, 4);
+  var gridClass = "video-grid";
 
   // Thank you screen
   if (callEnded) {
@@ -602,7 +600,11 @@ function App() {
         e("div", { className: "end-screen-icon" }, "\uD83D\uDC4B"),
         e("h1", null, "Thank You!"),
         e("p", null, "Your call has ended. See you next time!"),
-        e("button", { className: "reconnect-btn", onClick: connectAgain }, "\uD83D\uDD04  Connect Again")
+        e("a", {
+          className: "reconnect-btn",
+          href: "/?reconnect=1",
+          style: { textDecoration: "none", display: "inline-block", color: "#fff" }
+        }, "\uD83D\uDD04  Connect Again")
       )
     );
   }

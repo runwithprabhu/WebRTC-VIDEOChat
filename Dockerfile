@@ -8,10 +8,9 @@ RUN npm install --production
 
 COPY RTC_server/server.js ./
 
-# Copy client files
-COPY RTC_Client ./public
+# Copy React build output
+COPY rtc-client/build ./public
 
-# Update server.js static path to use /app/public inside container
 ENV NODE_ENV=production
 
 EXPOSE 3000
