@@ -223,7 +223,7 @@ function App() {
     return (
       <div className="app-container">
         <div className="app-bg" />
-        <EndScreen onReconnect={reconnect} />
+        <EndScreen />
       </div>
     );
   }

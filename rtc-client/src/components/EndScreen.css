@@ -53,6 +53,8 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+  text-decoration: none;
+  display: inline-block;
 }
 
 .reconnect-btn:hover {
