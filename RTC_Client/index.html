@@ -1,100 +1,361 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>WebRTC Group Call - React</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRTC Video Call</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #0a0a1a;
+      --bg-secondary: #12122a;
+      --bg-card: #1a1a3e;
+      --accent: #6c5ce7;
+      --accent-hover: #7f70f0;
+      --danger: #ff4757;
+      --success: #2ed573;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0c0;
+      --border: rgba(108, 92, 231, 0.2);
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --glass: rgba(26, 26, 62, 0.8);
+    }
     body {
-      font-family: Arial, sans-serif;
-      background: #1a1a2e;
-      color: #fff;
-      padding: 20px;
-    }
-    h1 { text-align: center; margin-bottom: 10px; }
-    .root { max-width: 1200px; margin: 0 auto; }
-    .room-info { text-align: center; margin-bottom: 20px; color: #aaa; }
-    .video-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .video-container {
-      position: relative;
-      background: #000;
-      border-radius: 8px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      height: 100dvh;
       overflow: hidden;
     }
+
+    /* Animated gradient background */
+    .app-bg {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(108,92,231,0.15) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 20%, rgba(46,213,115,0.08) 0%, transparent 40%),
+                  radial-gradient(ellipse at 50% 100%, rgba(255,71,87,0.08) 0%, transparent 40%);
+      z-index: 0;
+    }
+
+    .app-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+    }
+
+    /* Header */
+    .header {
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(20px);
+      background: var(--glass);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), #a29bfe);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+
+    .room-badge {
+      background: rgba(108,92,231,0.2);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .room-badge .dot {
+      width: 7px; height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* Video Grid */
+    .video-grid {
+      flex: 1;
+      display: grid;
+      gap: 6px;
+      padding: 6px;
+      overflow: hidden;
+    }
+    .video-grid.count-1 { grid-template-columns: 1fr; }
+    .video-grid.count-2 { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    .video-grid.count-3,
+    .video-grid.count-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+    .video-container {
+      position: relative;
+      background: var(--bg-card);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
     .video-container video {
-      width: 100%;
-      min-height: 200px;
+      width: 100%; height: 100%;
       object-fit: cover;
     }
-    .video-label {
+
+    .video-overlay {
       position: absolute;
-      bottom: 8px;
-      left: 8px;
-      background: rgba(0,0,0,0.6);
-      padding: 4px 8px;
-      border-radius: 4px;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 12px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .video-label {
       font-size: 12px;
+      font-weight: 500;
+      padding: 3px 8px;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+      border-radius: 6px;
+    }
+    .video-status {
+      display: flex; gap: 4px;
+    }
+    .status-dot {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+    }
+    .status-dot.muted { background: rgba(255,71,87,0.8); }
+
+    /* Controls Bar */
+    .controls-wrapper {
+      padding: 16px 16px 24px;
+      backdrop-filter: blur(20px);
+      background: var(--glass);
+      border-top: 1px solid var(--border);
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+    }
+    .control-btn {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .control-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .control-btn:active { transform: scale(0.88); }
+    .control-btn:hover::before { opacity: 1; }
+
+    .control-btn.on {
+      background: rgba(108,92,231,0.25);
+      color: #fff;
+      border: 1px solid var(--border);
+    }
+    .control-btn.on:hover::before { background: rgba(108,92,231,0.15); }
+    .control-btn.off {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(255,71,87,0.3);
+    }
+    .control-btn.end-call {
+      background: var(--danger);
+      color: #fff;
+      width: 60px; height: 60px;
+      box-shadow: 0 4px 20px rgba(255,71,87,0.4);
+    }
+    .control-btn.flip {
+      background: rgba(108,92,231,0.25);
+      color: #fff;
+      border: 1px solid var(--border);
+    }
+    .control-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 4px;
+    }
+    .control-item { display: flex; flex-direction: column; align-items: center; }
+
+    /* Timer */
+    .call-timer {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Thank you screen */
+    .end-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      padding: 24px;
+      animation: fadeIn 0.5s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .end-screen-icon {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, var(--accent), #a29bfe);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px rgba(108,92,231,0.3);
+    }
+    .end-screen h1 {
+      font-size: 28px; font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #fff, #a0a0c0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .end-screen p { color: var(--text-secondary); font-size: 15px; margin-bottom: 36px; }
+    .reconnect-btn {
+      background: linear-gradient(135deg, var(--accent), #a29bfe);
+      color: #fff;
+      border: none;
+      padding: 14px 36px;
+      border-radius: 28px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(108,92,231,0.4);
+    }
+    .reconnect-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(108,92,231,0.5); }
+    .reconnect-btn:active { transform: scale(0.95); }
+
+    /* Log panel */
+    .log-toggle {
+      text-align: center;
+      padding: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      background: var(--bg-secondary);
     }
     .log-panel {
-      padding: 10px;
-      background: #0f0f23;
-      border: 1px solid #333;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 11px;
-      max-height: 150px;
+      padding: 8px 12px;
+      background: var(--bg-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      max-height: 100px;
       overflow-y: auto;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border);
+    }
+    .log-panel.hidden { display: none; }
+
+    @media (min-width: 768px) {
+      .controls { gap: 20px; }
+      .control-btn { width: 60px; height: 60px; }
+      .control-btn.end-call { width: 68px; height: 68px; }
     }
   </style>
 </head>
 <body>
-
 <div id="root"></div>
 
-<!-- React 18 UMD builds -->
 <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 <script>
-// Shortcuts
 var e = React.createElement;
 var useState = React.useState;
 var useEffect = React.useEffect;
 var useRef = React.useRef;
-var useCallback = React.useCallback;
 
-// ============================================================
-// ICE Server Configuration
-// ============================================================
 var ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    }
+    { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" }
   ]
 };
 
 // ============================================================
-// VideoTile Component - Renders a single video element
+// Icons
+// ============================================================
+function MicIcon() {
+  return e("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: "currentColor" },
+    e("path", { d: "M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" }),
+    e("path", { d: "M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" })
+  );
+}
+function MicOffIcon() {
+  return e("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: "currentColor" },
+    e("path", { d: "M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z" })
+  );
+}
+
+function VideoIcon() {
+  return e("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: "currentColor" },
+    e("path", { d: "M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" })
+  );
+}
+function VideoOffIcon() {
+  return e("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: "currentColor" },
+    e("path", { d: "M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z" })
+  );
+}
+function FlipIcon() {
+  return e("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: "currentColor" },
+    e("path", { d: "M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 11.5V13H9v2.5L5.5 12 9 8.5V11h6V8.5l3.5 3.5-3.5 3.5z" })
+  );
+}
+function EndCallIcon() {
+  return e("svg", { width: 26, height: 26, viewBox: "0 0 24 24", fill: "currentColor" },
+    e("path", { d: "M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" })
+  );
+}
+
+// ============================================================
+// VideoTile
 // ============================================================
 function VideoTile(props) {
   var videoRef = useRef(null);
-
   useEffect(function() {
     if (videoRef.current && props.stream) {
       videoRef.current.srcObject = props.stream;
@@ -102,277 +363,311 @@ function VideoTile(props) {
   }, [props.stream]);
 
   return e("div", { className: "video-container" },
-    e("video", {
-      ref: videoRef,
-      autoPlay: true,
-      playsInline: true,
-      muted: props.muted || false
-    }),
-    e("div", { className: "video-label" }, props.label)
+    e("video", { ref: videoRef, autoPlay: true, playsInline: true, muted: props.muted || false }),
+    e("div", { className: "video-overlay" },
+      e("span", { className: "video-label" }, props.label),
+      props.showStatus ? e("div", { className: "video-status" },
+        !props.audioOn ? e("span", { className: "status-dot muted" }, "\uD83D\uDD07") : null
+      ) : null
+    )
   );
 }
 
 // ============================================================
-// LogPanel Component - Shows debug messages
+// CallTimer - shows elapsed time
+// ============================================================
+function CallTimer(props) {
+  var secondsState = useState(0);
+  var seconds = secondsState[0]; var setSeconds = secondsState[1];
+
+  useEffect(function() {
+    if (!props.active) { setSeconds(0); return; }
+    var interval = setInterval(function() {
+      setSeconds(function(s) { return s + 1; });
+    }, 1000);
+    return function() { clearInterval(interval); };
+  }, [props.active]);
+
+  var mins = Math.floor(seconds / 60);
+  var secs = seconds % 60;
+  var display = String(mins).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+  return e("div", { className: "call-timer" }, "\u23F1 " + display);
+}
+
+// ============================================================
+// LogPanel
 // ============================================================
 function LogPanel(props) {
   var logRef = useRef(null);
-
   useEffect(function() {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [props.logs]);
-
   return e("div", { className: "log-panel", ref: logRef },
-    props.logs.map(function(msg, i) {
-      return e("div", { key: i }, msg);
-    })
+    props.logs.map(function(msg, i) { return e("div", { key: i }, msg); })
   );
 }
 
 // ============================================================
-// RoomInfo Component
-// ============================================================
-function RoomInfo(props) {
-  var status = props.connected
-    ? (props.peerCount + 1) + " participant(s)"
-    : "Connecting...";
-  return e("p", { className: "room-info" },
-    "Room: " + props.roomId + " | " + status
-  );
-}
-
-// ============================================================
-// App Component - Main application logic
+// App Component
 // ============================================================
 function App() {
-  var logsState = useState([]);
-  var logs = logsState[0];
-  var setLogs = logsState[1];
-
-  var localStreamState = useState(null);
-  var localStream = localStreamState[0];
-  var setLocalStream = localStreamState[1];
-
-  var remoteStreamsState = useState({});
-  var remoteStreams = remoteStreamsState[0];
-  var setRemoteStreams = remoteStreamsState[1];
-
-  var connectedState = useState(false);
-  var connected = connectedState[0];
-  var setConnected = connectedState[1];
+  var logsState = useState([]); var logs = logsState[0]; var setLogs = logsState[1];
+  var localStreamState = useState(null); var localStream = localStreamState[0]; var setLocalStream = localStreamState[1];
+  var remoteStreamsState = useState({}); var remoteStreams = remoteStreamsState[0]; var setRemoteStreams = remoteStreamsState[1];
+  var connectedState = useState(false); var connected = connectedState[0]; var setConnected = connectedState[1];
+  var callEndedState = useState(false); var callEnded = callEndedState[0]; var setCallEnded = callEndedState[1];
+  var audioEnabledState = useState(true); var audioEnabled = audioEnabledState[0]; var setAudioEnabled = audioEnabledState[1];
+  var videoEnabledState = useState(true); var videoEnabled = videoEnabledState[0]; var setVideoEnabled = videoEnabledState[1];
+  var showLogState = useState(false); var showLog = showLogState[0]; var setShowLog = showLogState[1];
+  var facingModeState = useState("user"); var facingMode = facingModeState[0]; var setFacingMode = facingModeState[1];
 
   var socketRef = useRef(null);
   var peersRef = useRef({});
   var localStreamRef = useRef(null);
   var roomId = "room1";
 
-  // Helper to add log messages
   function addLog(msg) {
     var time = new Date().toLocaleTimeString();
     setLogs(function(prev) { return prev.concat([time + " " + msg]); });
     console.log(msg);
   }
 
-  // Create a peer connection to a specific remote user
   function createPeerConnection(remoteSocketId) {
     var pc = new RTCPeerConnection(ICE_CONFIG);
-
-    // Add our local tracks
     localStreamRef.current.getTracks().forEach(function(track) {
       pc.addTrack(track, localStreamRef.current);
     });
-
-    // When we receive remote tracks
     pc.ontrack = function(event) {
-      addLog("Received track from " + remoteSocketId.substring(0, 6));
+      addLog("Track from " + remoteSocketId.substring(0, 6));
       setRemoteStreams(function(prev) {
         var updated = Object.assign({}, prev);
         updated[remoteSocketId] = event.streams[0];
         return updated;
       });
     };
-
-    // Send ICE candidates
     pc.onicecandidate = function(event) {
       if (event.candidate) {
-        socketRef.current.emit("ice-candidate", {
-          to: remoteSocketId,
-          candidate: event.candidate
-        });
+        socketRef.current.emit("ice-candidate", { to: remoteSocketId, candidate: event.candidate });
       }
     };
-
     pc.oniceconnectionstatechange = function() {
       addLog("ICE [" + remoteSocketId.substring(0, 6) + "]: " + pc.iceConnectionState);
       if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
         removePeer(remoteSocketId);
       }
     };
-
     pc.pendingCandidates = [];
     peersRef.current[remoteSocketId] = pc;
     return pc;
   }
 
-  // Clean up a peer
   function removePeer(socketId) {
-    if (peersRef.current[socketId]) {
-      peersRef.current[socketId].close();
-      delete peersRef.current[socketId];
-    }
-    setRemoteStreams(function(prev) {
-      var updated = Object.assign({}, prev);
-      delete updated[socketId];
-      return updated;
-    });
+    if (peersRef.current[socketId]) { peersRef.current[socketId].close(); delete peersRef.current[socketId]; }
+    setRemoteStreams(function(prev) { var u = Object.assign({}, prev); delete u[socketId]; return u; });
   }
 
-  // Initialize everything
-  useEffect(function() {
-    async function init() {
-      try {
-        // Step 1: Get local camera and microphone
-        var stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-        addLog("Got local media stream");
-
-        // Step 2: Connect to the signaling server
-        var socket = io(window.location.origin);
-        socketRef.current = socket;
-
-        socket.on("connect", function() {
-          addLog("Socket connected: " + socket.id);
-          setConnected(true);
-          socket.emit("join-room", roomId);
-          addLog("Joined room: " + roomId);
-        });
-
-        // Step 3: Get existing users, send offers to each
-        socket.on("existing-users", async function(userIds) {
-          addLog("Existing users in room: " + userIds.length);
-          for (var i = 0; i < userIds.length; i++) {
-            var userId = userIds[i];
-            addLog("Creating offer for " + userId.substring(0, 6));
-            var pc = createPeerConnection(userId);
-            var offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit("offer", { to: userId, offer: offer });
-          }
-        });
-
-        // Step 4: New user joined (they will send us an offer)
-        socket.on("user-joined", function(userId) {
-          addLog("New user joined: " + userId.substring(0, 6));
-        });
-
-        // Step 5: Receive offer, send answer
-        socket.on("offer", async function(data) {
-          var from = data.from;
-          var offer = data.offer;
-          addLog("Received offer from " + from.substring(0, 6));
-          var pc = createPeerConnection(from);
-          await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-          // Apply queued ICE candidates
-          for (var i = 0; i < pc.pendingCandidates.length; i++) {
-            await pc.addIceCandidate(new RTCIceCandidate(pc.pendingCandidates[i]));
-          }
-          pc.pendingCandidates = [];
-
-          var answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          socket.emit("answer", { to: from, answer: answer });
-          addLog("Answer sent to " + from.substring(0, 6));
-        });
-
-        // Step 6: Receive answer
-        socket.on("answer", async function(data) {
-          var from = data.from;
-          var answer = data.answer;
-          addLog("Received answer from " + from.substring(0, 6));
-          var pc = peersRef.current[from];
-          if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            for (var i = 0; i < pc.pendingCandidates.length; i++) {
-              await pc.addIceCandidate(new RTCIceCandidate(pc.pendingCandidates[i]));
-            }
-            pc.pendingCandidates = [];
-          }
-        });
-
-        // Step 7: Exchange ICE candidates
-        socket.on("ice-candidate", async function(data) {
-          var from = data.from;
-          var candidate = data.candidate;
-          var pc = peersRef.current[from];
-          if (pc) {
-            if (pc.remoteDescription) {
-              await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            } else {
-              pc.pendingCandidates.push(candidate);
-            }
-          }
-        });
-
-        // Step 8: User left
-        socket.on("user-left", function(userId) {
-          addLog("User left: " + userId.substring(0, 6));
-          removePeer(userId);
-        });
-
-      } catch (err) {
-        addLog("Error: " + err.message);
-      }
+  function toggleAudio() {
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(function(t) { t.enabled = !t.enabled; });
+      setAudioEnabled(!audioEnabled);
     }
+  }
 
-    init();
+  function toggleVideo() {
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(function(t) { t.enabled = !t.enabled; });
+      setVideoEnabled(!videoEnabled);
+    }
+  }
 
+  async function flipCamera() {
+    var newMode = facingMode === "user" ? "environment" : "user";
+    try {
+      var newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newMode }, audio: true });
+      var newVideoTrack = newStream.getVideoTracks()[0];
+      Object.values(peersRef.current).forEach(function(pc) {
+        var sender = pc.getSenders().find(function(s) { return s.track && s.track.kind === "video"; });
+        if (sender) sender.replaceTrack(newVideoTrack);
+      });
+      var oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (oldVideoTrack) oldVideoTrack.stop();
+      localStreamRef.current.removeTrack(oldVideoTrack);
+      localStreamRef.current.addTrack(newVideoTrack);
+      setLocalStream(localStreamRef.current);
+      setFacingMode(newMode);
+    } catch (err) { addLog("Flip error: " + err.message); }
+  }
+
+  function endCall() {
+    Object.values(peersRef.current).forEach(function(pc) { pc.close(); });
+    peersRef.current = {};
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(function(t) { t.stop(); });
+      localStreamRef.current = null;
+    }
+    if (socketRef.current) socketRef.current.disconnect();
+    setLocalStream(null);
+    setRemoteStreams({});
+    setConnected(false);
+    setCallEnded(true);
+  }
+
+  function setupSocket(socket) {
+    socket.on("connect", function() {
+      addLog("Connected: " + socket.id);
+      setConnected(true);
+      socket.emit("join-room", roomId);
+    });
+    socket.on("existing-users", async function(userIds) {
+      for (var i = 0; i < userIds.length; i++) {
+        var pc = createPeerConnection(userIds[i]);
+        var offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("offer", { to: userIds[i], offer: offer });
+      }
+    });
+    socket.on("user-joined", function(userId) { addLog("User joined: " + userId.substring(0, 6)); });
+    socket.on("offer", async function(data) {
+      var pc = createPeerConnection(data.from);
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      for (var i = 0; i < pc.pendingCandidates.length; i++) { await pc.addIceCandidate(new RTCIceCandidate(pc.pendingCandidates[i])); }
+      pc.pendingCandidates = [];
+      var answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", { to: data.from, answer: answer });
+    });
+
+    socket.on("answer", async function(data) {
+      var pc = peersRef.current[data.from];
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        for (var i = 0; i < pc.pendingCandidates.length; i++) { await pc.addIceCandidate(new RTCIceCandidate(pc.pendingCandidates[i])); }
+        pc.pendingCandidates = [];
+      }
+    });
+    socket.on("ice-candidate", async function(data) {
+      var pc = peersRef.current[data.from];
+      if (pc) {
+        if (pc.remoteDescription) { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); }
+        else { pc.pendingCandidates.push(data.candidate); }
+      }
+    });
+    socket.on("user-left", function(userId) { addLog("Left: " + userId.substring(0, 6)); removePeer(userId); });
+  }
+
+  function connectAgain() {
+    setCallEnded(false);
+    setLogs([]);
+    setAudioEnabled(true);
+    setVideoEnabled(true);
+    initCall();
+  }
+
+  async function initCall() {
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+      setLocalStream(stream);
+      localStreamRef.current = stream;
+      addLog("Got local media");
+      var socket = io(window.location.origin);
+      socketRef.current = socket;
+      setupSocket(socket);
+    } catch (err) { addLog("Error: " + err.message); }
+  }
+
+  useEffect(function() {
+    initCall();
     return function() {
       if (socketRef.current) socketRef.current.disconnect();
       Object.values(peersRef.current).forEach(function(pc) { pc.close(); });
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(function(t) { t.stop(); });
-      }
+      if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(function(t) { t.stop(); }); }
     };
   }, []);
 
-  var peerCount = Object.keys(remoteStreams).length;
-
-  // Build video tiles array
+  // ---- RENDER ----
   var videoTiles = [];
-
   if (localStream) {
-    videoTiles.push(
-      e(VideoTile, { key: "local", stream: localStream, label: "You", muted: true })
+    videoTiles.push(e(VideoTile, { key: "local", stream: localStream, label: "You", muted: true, showStatus: true, audioOn: audioEnabled }));
+  }
+  Object.keys(remoteStreams).forEach(function(id) {
+    videoTiles.push(e(VideoTile, { key: id, stream: remoteStreams[id], label: "User " + id.substring(0, 6), showStatus: false }));
+  });
+  var gridClass = "video-grid count-" + Math.min(videoTiles.length, 4);
+
+  // Thank you screen
+  if (callEnded) {
+    return e("div", { className: "app-container" },
+      e("div", { className: "app-bg" }),
+      e("div", { className: "end-screen" },
+        e("div", { className: "end-screen-icon" }, "\uD83D\uDC4B"),
+        e("h1", null, "Thank You!"),
+        e("p", null, "Your call has ended. See you next time!"),
+        e("button", { className: "reconnect-btn", onClick: connectAgain }, "\uD83D\uDD04  Connect Again")
+      )
     );
   }
 
-  Object.keys(remoteStreams).forEach(function(id) {
-    videoTiles.push(
-      e(VideoTile, { key: id, stream: remoteStreams[id], label: "User " + id.substring(0, 6) })
-    );
-  });
+  return e("div", { className: "app-container" },
+    e("div", { className: "app-bg" }),
 
-  return e("div", { className: "root" },
-    e("h1", null, "WebRTC Group Call"),
-    e(RoomInfo, { roomId: roomId, peerCount: peerCount, connected: connected }),
-    e("div", { className: "video-grid" }, videoTiles),
-    e(LogPanel, { logs: logs })
+    // Header
+    e("div", { className: "header" },
+      e("div", { className: "header-left" },
+        e("div", { className: "header-logo" }, "\uD83C\uDF10"),
+        e("h1", null, "Video Call")
+      ),
+      e("span", { className: "room-badge" },
+        connected ? e("span", { className: "dot" }) : null,
+        connected ? (Object.keys(remoteStreams).length + 1) + " online" : "connecting..."
+      )
+    ),
+
+    // Video Grid
+    e("div", { className: gridClass }, videoTiles),
+
+    // Controls
+    e("div", { className: "controls-wrapper" },
+      e(CallTimer, { active: connected }),
+      e("div", { className: "controls" },
+        e("div", { className: "control-item" },
+          e("button", { className: "control-btn " + (audioEnabled ? "on" : "off"), onClick: toggleAudio, "aria-label": "Toggle mic" },
+            audioEnabled ? e(MicIcon) : e(MicOffIcon)
+          ),
+          e("span", { className: "control-label" }, "Mic")
+        ),
+        e("div", { className: "control-item" },
+          e("button", { className: "control-btn " + (videoEnabled ? "on" : "off"), onClick: toggleVideo, "aria-label": "Toggle camera" },
+            videoEnabled ? e(VideoIcon) : e(VideoOffIcon)
+          ),
+          e("span", { className: "control-label" }, "Camera")
+        ),
+
+        e("div", { className: "control-item" },
+          e("button", { className: "control-btn flip", onClick: flipCamera, "aria-label": "Flip camera" },
+            e(FlipIcon)
+          ),
+          e("span", { className: "control-label" }, "Flip")
+        ),
+        e("div", { className: "control-item" },
+          e("button", { className: "control-btn end-call", onClick: endCall, "aria-label": "End call" },
+            e(EndCallIcon)
+          ),
+          e("span", { className: "control-label" }, "End")
+        )
+      )
+    ),
+
+    // Log toggle
+    e("div", { className: "log-toggle", onClick: function() { setShowLog(!showLog); } },
+      showLog ? "Hide logs \u25B2" : "Show logs \u25BC"
+    ),
+    showLog ? e(LogPanel, { logs: logs }) : null
   );
 }
 
-// ============================================================
 // Render
-// ============================================================
 var root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(e(App));
 </script>
-
 </body>
 </html>
